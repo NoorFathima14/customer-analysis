@@ -11,7 +11,8 @@ class PreTokenizedDataset(Dataset):
             max_length=max_length,
             padding='max_length',
             truncation=True,
-            return_tensors='pt'
+            return_tensors='pt',
+            return_token_type_ids=False
         )
 
     def __getitem__(self, idx):

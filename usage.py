@@ -1,8 +1,12 @@
+from torch.utils.data import DataLoader
+from pretokenized_dataset import PreTokenizedDataset
 from detector import EmotionDetector
 from datasets import load_dataset
 from sklearn.model_selection import train_test_split
-from pretokenized_dataset import PreTokenizedDataset
-from transformers import DistilBertModel, DistilBertTokenizer
+#from transformers import DistilBertModel, DistilBertTokenizer
+from transformers import BertModel, BertTokenizer
+from label_preprocessor import process_train_labels
+from config import EmotionConfig as config
 
 # Load GoEmotions dataset
 dataset = load_dataset("go_emotions", "raw")
@@ -11,22 +15,22 @@ dataset = load_dataset("go_emotions", "raw")
 train_texts = dataset["train"]["text"]
 print("Fetched dataset.")
 
-SUBSET_FRACTION = 0.0001  # 0.01% of dataset (adjust as needed)
+SUBSET_FRACTION = 0.1  # (adjust as needed)
 TEST_SIZE = 0.2            # 20% validation split
 RANDOM_STATE = 42
 
-# Emotion columns 
+# Emotion columns
 emotion_columns = [
     "joy",
     "excitement",
     "gratitude",
-    "approval",  
+    "approval",
     "anger",
     "disappointment",
     "disgust",
-    "sadness",  
+    "sadness",
     "confusion",
-    "surprise",  
+    "surprise",
 ]
 
 print("Processing train labels")
@@ -39,11 +43,8 @@ if subset_size < 1:
     print(f"Warning: Subset size {subset_size} < 1. Using minimum 1 sample")
     subset_size = 1
 
-# Create subset of labels and texts using SAME subset size
-train_labels = [
-    [dataset["train"][emotion][i] for emotion in emotion_columns]
-    for i in range(subset_size) 
-]
+# Process (and cache) train labels using our new module
+train_labels = process_train_labels(dataset, emotion_columns, subset_size)
 
 print("Processed train labels")
 
@@ -61,18 +62,19 @@ print(f"Processed {subset_size} samples")
 print(f"Training set: {len(train_texts)} samples")
 print(f"Validation set: {len(val_texts)} samples")
 
-tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
-MAX_LENGTH = 128
+tokenizer = BertTokenizer.from_pretrained(config.MODEL_NAME)
+
 
 # Create pre-tokenized datasets
-train_dataset = PreTokenizedDataset(train_texts, train_labels, tokenizer, max_length=MAX_LENGTH)
-val_dataset = PreTokenizedDataset(val_texts, val_labels, tokenizer, max_length=MAX_LENGTH)
+train_dataset = PreTokenizedDataset(train_texts, train_labels, tokenizer, max_length=config.MAX_LENGTH)
+val_dataset = PreTokenizedDataset(val_texts, val_labels, tokenizer, max_length=config.MAX_LENGTH)
 
 # Create DataLoaders from the pre-tokenized datasets
-train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=16)
+train_loader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=config.BATCH_SIZE)
 
 print("Pre-tokenization complete. DataLoaders are ready.")
+
 
 # Initialize detector
 detector = EmotionDetector()
@@ -87,7 +89,7 @@ detector.save_model("emotion_model.pth")
 detector = EmotionDetector.load_model("emotion_model.pth")
 
 # Predict
-text = "I'm absolutely thrilled with this product! Best purchase ever!"
+text = "The product was awesome, but the delivery was terrible"
 results = detector.predict(text)
 
 print("Detected Emotions:")
