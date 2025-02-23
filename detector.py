@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import BertModel, BertTokenizer
+from transformers import DistilBertModel, DistilBertTokenizer
 from torch.utils.data import DataLoader
 from typing import List, Dict
 from sklearn.metrics import f1_score
@@ -13,24 +13,29 @@ class EmotionDetector:
     def __init__(self, config=EmotionConfig):
         self.config = config
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.tokenizer = BertTokenizer.from_pretrained(config.MODEL_NAME)
+        self.tokenizer = DistilBertTokenizer.from_pretrained(config.MODEL_NAME)
         self.model = self._initialize_model()
         self.label_names = self._load_label_names()
 
     def _initialize_model(self) -> nn.Module:
-        class BertForEmotionClassification(nn.Module):
+        class DistilBertForEmotionClassification(nn.Module):
             def __init__(self, config):
                 super().__init__()
-                self.bert = BertModel.from_pretrained(config.MODEL_NAME)
-                self.classifier = nn.Linear(self.bert.config.hidden_size, config.NUM_LABELS)
+                self.bert = DistilBertModel.from_pretrained(config.MODEL_NAME)
+                self.classifier = nn.Linear(self.distilbert.config.dim, config.NUM_LABELS)
                 self.dropout = nn.Dropout(config.DROPOUT)
 
             def forward(self, input_ids, attention_mask):
-                outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
-                pooled_output = self.dropout(outputs.pooler_output)
-                return self.classifier(pooled_output)
+                outputs = self.distilbert(input_ids=input_ids, attention_mask=attention_mask)
+                # pooled_output = self.dropout(outputs.pooler_output)
+                # return self.classifier(pooled_output)
+                hidden_state = outputs[0]  # Last hidden state, shape: (batch_size, seq_len, hidden_size)
+                pooled_output = hidden_state[:, 0]  # Use the first token ([CLS]) representation
+                pooled_output = self.dropout(pooled_output)
+                logits = self.classifier(pooled_output)
+                return logits
 
-        model = BertForEmotionClassification(self.config).to(self.device)
+        model = DistilBertForEmotionClassification(self.config).to(self.device)
         return model
 
     def _load_label_names(self) -> List[str]:
@@ -77,15 +82,7 @@ class EmotionDetector:
             })
         return sorted(results, key=lambda x: x['score'], reverse=True)
 
-    def train(self, train_texts, train_labels, val_texts, val_labels):
-        # Create datasets
-        train_dataset = GoEmotionsDataset(train_texts, train_labels, self.tokenizer, self.config.MAX_LENGTH)
-        val_dataset = GoEmotionsDataset(val_texts, val_labels, self.tokenizer, self.config.MAX_LENGTH)
-
-        # Create DataLoaders
-        train_loader = DataLoader(train_dataset, batch_size=self.config.BATCH_SIZE, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=self.config.BATCH_SIZE)
-
+    def train(self, train_loader, val_loader):
         # Training setup
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config.LEARNING_RATE)
         loss_fn = nn.BCEWithLogitsLoss()
