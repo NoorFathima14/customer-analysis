@@ -3,12 +3,20 @@ from config import EmotionConfig
 
 class EmotionPostprocessor:
     @staticmethod
-    def get_activation_level(score: float) -> str:
-        if score >= EmotionConfig.HIGH_ACTIVATION:
-            return "High"
-        elif score >= EmotionConfig.MEDIUM_ACTIVATION:
-            return "Medium"
-        return "Low"
+    def get_activation_level(emotion: str) -> str:
+      emotion = emotion.lower()
+      high_activation = {'ecstasy', 'vigilance','admiration','terror','amazement','grief','loathing','rage'}
+      medium_activation = {'joy', 'anticipation', 'trust', 'fear', 'suprise', 'sadness','disgust','anger'}
+      low_activation = {'serenity', 'interest','acceptance','apprehension','distraction','pensiveness','boredom','annoyance'}
+
+      if emotion in high_activation:
+          return 'High'
+      elif emotion in medium_activation:
+          return 'Medium'
+      elif emotion in low_activation:
+          return 'Low'
+      else:
+          return 'Low'
 
     @staticmethod
     def map_to_plutchik(emotions: List[str]) -> Dict[str, str]:

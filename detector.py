@@ -70,25 +70,28 @@ class EmotionDetector:
         probs = torch.sigmoid(logits).cpu().numpy()[0]
         return self._format_output(probs)
 
-    def _format_output(self, probs: np.ndarray) -> List[Dict]:
+    def _format_output(self, probs: np.ndarray, logits: np.ndarray) -> list:
         results = []
-        for i, prob in enumerate(probs):
-            # if prob > self.config.MEDIUM_ACTIVATION:
+        EPSILON = 1e-6
+        max_logit = max(np.abs(logits)) + EPSILON
+        for i, (prob, logit) in enumerate(zip(probs, logits)):
             emotion_name = self.label_names[i]
+            confidence = (abs(logit) / max_logit) * 100
             plutchik_mapping = EmotionPostprocessor.map_to_plutchik([emotion_name])
             results.append({
                 "emotion": emotion_name,
-                "score": float(prob),
-                "activation": EmotionPostprocessor.get_activation_level(prob),
+                "intensity": float(prob),
+                "activation": EmotionPostprocessor.get_activation_level(emotion_name),
+                "confidence_percentage": confidence,  # Confidence as a percentage
                 "category": plutchik_mapping[emotion_name]  # Access the dictionary correctly
             })
-        return sorted(results, key=lambda x: x['score'], reverse=True)
+        return sorted(results, key=lambda x: x['intensity'], reverse=True)
 
     def train(self, train_loader, val_loader):
         # Training setup
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config.LEARNING_RATE)
         loss_fn = nn.BCEWithLogitsLoss()
-
+        total_train_loss = 0
         # Training loop
         for epoch in range(self.config.EPOCHS):
             self.model.train()
@@ -102,10 +105,13 @@ class EmotionDetector:
                 loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
-            
+                
+                total_train_loss += loss.item()
+
+            avg_train_loss = total_train_loss / self.config.BATCH_SIZE
             # Validation step
             val_loss, val_f1 = self.evaluate(val_loader, loss_fn)
-            print(f"Epoch {epoch+1} | Val Loss: {val_loss:.4f} | Val F1: {val_f1:.4f}")
+            print(f"Epoch {epoch+1} | Train Loss: {avg_train_loss:.4f} | Val Loss: {val_loss:.4f} | Val F1: {val_f1:.4f}")
 
     def evaluate(self, val_loader, loss_fn):
         self.model.eval()

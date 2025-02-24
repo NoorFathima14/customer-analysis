@@ -93,8 +93,9 @@ text = "The product was awesome, but the delivery was terrible"
 results = detector.predict(text)
 
 print("Detected Emotions:")
-sorted_results = sorted(results, key=lambda x: x["score"], reverse=True)
+sorted_results = sorted(results, key=lambda x: x["intensity"], reverse=True)
 for result in sorted_results:
     print(
-        f"{result['emotion'].capitalize()} ({result['activation']} activation): {result['score']:.2f}"
+    f"{result['emotion'].capitalize()} ({result['activation']} activation): "
+    f"Intensity: {result['intensity']:.2f}, Confidence: {result['confidence_percentage']:.2f}%"
     )
