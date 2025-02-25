@@ -7,10 +7,7 @@ from bertopic import BERTopic
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-
-# Download NLTK resources
-nltk.download("stopwords")
-nltk.download("wordnet")
+import pickle
 
 class ReviewPreprocessor:
     """Handles review text preprocessing (cleaning, stopword removal, lemmatization)."""
@@ -140,20 +137,21 @@ class SubtopicModel:
 class TopicModel:
     """Main execution class combining both Main Topics & Subtopics."""
 
-    def __init__(self, synthetic_file="synthetic_delivery_reviews.txt", dataset_category="raw_review_Amazon_Fashion"):
+    def __init__(self, synthetic_file="synthetic_delivery_reviews.txt", dataset_category="raw_review_Amazon_Fashion", model_path="bertopic_model.pkl"):
         self.synthetic_file = synthetic_file
         self.dataset_category = dataset_category
         self.preprocessor = ReviewPreprocessor()
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
         self.main_topic_model = MainTopicModel(self.embedding_model)
         self.subtopic_model = SubtopicModel(self.embedding_model)
+        self.model_path = model_path
 
     def load_datasets(self):
         """Loads synthetic and Amazon Fashion datasets, then preprocesses them."""
         with open(self.synthetic_file, "r", encoding="utf-8") as f:
             synthetic_reviews = [line.strip() for line in f.readlines() if line.strip()]
         synthetic_reviews = synthetic_reviews[:6000]
-        amazon_fashion = load_dataset("McAuley-Lab/Amazon-Reviews-2023", self.dataset_category, split="full", streaming=True)
+        amazon_fashion = load_dataset("McAuley-Lab/Amazon-Reviews-2023", self.dataset_category, split="full", streaming=True, trust_remote_code=True)
         amazon_fashion = list(amazon_fashion.shuffle(buffer_size=14000, seed=42).take(7000))
 
         synthetic_dicts = [{"text": review} for review in synthetic_reviews]
@@ -166,30 +164,77 @@ class TopicModel:
         self.main_topic_model.train_topic_model(self.processed_reviews)
         self.main_topic_model.assign_seeded_labels()
 
-    def predict(self, reviews):
-        """Predicts main and subtopics for given reviews."""
-        for review in reviews:
-            main_labels = self.main_topic_model.predict_review_labels(review, threshold=0.2)
-            print(f"Review: {review}")
-            for label, main_score in main_labels.items():
-                sub_pred = self.subtopic_model.predict_review_subtopics(review, {label: main_score}, threshold=0.1)
-                if label in sub_pred:
-                    subtopic, sub_score = sub_pred[label]
-                    print(f"- Main Topic: {label} (Confidence: {main_score:.2f})")
-                    print(f"    -> Subtopic: {subtopic} (Confidence: {sub_score:.2f})")
-                else:
-                    print(f"- Main Topic: {label} (Confidence: {main_score:.2f})")
-            print("-" * 50)
+    def predict(self, review):
+        """Predicts main and subtopics for given reviews and returns structured output."""
+        main_labels = self.main_topic_model.predict_review_labels(review, threshold=0.2)
 
-# # Example usage
-# model = TopicModel()
-# model = TopicModel()
-# model.load_datasets()
-# model.train()
+        topics_output = {"main": [], "subtopics": {}}
 
-# new_reviews = [
-#     "The jeans fit perfectly! Love the quality.",
-#     "I was disappointed with how late my package arrived.",
-#     "The customer service was extremely helpful and friendly.",
-# ]
-# model.predict(new_reviews)
+        for label, main_score in main_labels.items():
+            topics_output["main"].append(label)
+
+            sub_pred = self.subtopic_model.predict_review_subtopics(review, {label: main_score}, threshold=0.1)
+
+            if label in sub_pred:
+                subtopic, sub_score = sub_pred[label]
+                if label not in topics_output["subtopics"]:
+                    topics_output["subtopics"][label] = []
+                topics_output["subtopics"][label].append(subtopic)
+
+        return {"topics": topics_output}
+
+    def save_model(self):
+        """Saves the trained BERTopic model and subtopic embeddings."""
+        save_data = {
+            "bertopic_model": self.main_topic_model.topic_model,  # Ensure BERTopic is stored properly
+            "subtopic_embeddings": self.subtopic_model.subtopic_anchor_embeddings
+        }
+        
+        with open(self.model_path, "wb") as f:
+            pickle.dump(save_data, f)  # Save the dictionary, not just BERTopic
+        
+        print(f"Model saved to {self.model_path}")
+
+    @classmethod
+    def load_model(cls, model_path="bertopic_model.pkl"):
+        """Loads the saved BERTopic model and subtopic embeddings, and returns an instance of TopicModel."""
+        with open(model_path, "rb") as f:
+            loaded_data = pickle.load(f)
+
+        # Create a new TopicModel instance
+        instance = cls(model_path)
+
+        # If the pickle contains just BERTopic, wrap it in a dictionary
+        if isinstance(loaded_data, BERTopic):  
+            instance.main_topic_model.topic_model = loaded_data
+            print("Warning: Old model format detected. Subtopic embeddings not loaded.")
+        elif isinstance(loaded_data, dict):  
+            # Properly restore both BERTopic and subtopics
+            instance.main_topic_model.topic_model = loaded_data["bertopic_model"]
+            instance.subtopic_model.subtopic_anchor_embeddings = loaded_data.get("subtopic_embeddings", {})
+        else:
+            raise ValueError("Invalid model format: expected BERTopic or dictionary.")
+
+        print(f"Model loaded from {model_path}")
+        return instance
+
+
+    def topic_analysis(self):
+        """Loads data, trains the topic model, and saves it."""
+        print("Loading datasets...")
+        self.load_datasets()
+
+        print("Training topic model...")
+        self.train()
+
+        print("Saving trained model...")
+        self.save_model()
+
+        print("Topic analysis complete! Model saved successfully.")
+
+# Download NLTK resources
+nltk.download("stopwords")
+nltk.download("wordnet")
+
+model = TopicModel()
+model.topic_analysis()

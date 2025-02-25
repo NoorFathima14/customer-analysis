@@ -85,17 +85,17 @@ detector.train(train_loader, val_loader)
 # Save model
 detector.save_model("emotion_model.pth")
 
-# Load model
-detector = EmotionDetector.load_model("emotion_model.pth")
+# # Load model
+# detector = EmotionDetector.load_model("emotion_model.pth")
 
-# Predict
-text = "The product was awesome, but the delivery was terrible"
-results = detector.predict(text)
+# # Predict
+# text = "The product was awesome, but the delivery was terrible"
+# results = detector.predict(text)
 
-print("Detected Emotions:")
-sorted_results = sorted(results, key=lambda x: x["intensity"], reverse=True)
-for result in sorted_results:
-    print(
-    f"{result['emotion'].capitalize()} ({result['activation']} activation): "
-    f"Intensity: {result['intensity']:.2f}, Confidence: {result['confidence_percentage']:.2f}%"
-    )
+# print("Detected Emotions:")
+# sorted_results = sorted(results, key=lambda x: x["intensity"], reverse=True)
+# for result in sorted_results:
+#     print(
+#     f"{result['emotion'].capitalize()} ({result['activation']} activation): "
+#     f"Intensity: {result['intensity']:.2f}, Confidence: {result['confidence_percentage']:.2f}%"
+#     )

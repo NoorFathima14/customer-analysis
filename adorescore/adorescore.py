@@ -114,8 +114,7 @@ class AdorescoreCalculator:
         plt.grid(True)
         plt.show()
 
-
-    def analyze_review(self, review, emotion_detector, topic_model):
+    def analyze_review(self, review, emotions, topics):
         """
         Predicts emotions, topics, and computes Adorescore for a given review.
 
@@ -124,42 +123,15 @@ class AdorescoreCalculator:
         :param topic_model: Pretrained topic analysis model
         :return: Adorescore, topic breakdown, detected emotions
         """
-        emotions = emotion_detector.predict(review)
 
-        main_topics = topic_model.main_topic_model.predict_review_labels(review, threshold=0.2)
+        adorescore, topic_scores = self.compute_adorescore(emotions, topics)
 
-        adorescore, topic_scores = self.compute_adorescore(emotions, main_topics)
-
-        return {
-            "Review": review,
-            "Adorescore": adorescore,
-            "Topic Breakdown": topic_scores,
-            "Emotions": emotions
+        result = {
+          "adorescore": {
+              "overall": round(adorescore),
+              "breakdown": {topic: round(score) for topic, score in topic_scores.items()}
+          }
         }
 
-# # Example usage  
-# emotion_detector = EmotionDetector.load_model("emotion_model.pth") 
-# topic_model = TopicModel()  
+        return result
 
-# adorescore_calculator = AdorescoreCalculator()
-
-# sample_review = "The customer service was extremely friendly."
-
-# result = adorescore_calculator.analyze_review(sample_review, emotion_detector, topic_model)
-
-# print("\n=== Adorescore Analysis ===")
-# print(f"Review: {result['Review']}")
-# print(f"Adorescore: {result['Adorescore']}\n")
-
-# print("Topic Breakdown:")
-# for topic, score in result["Topic Breakdown"].items():
-#     print(f"- {topic}: {score:.2f}")
-
-# print("\nDetected Emotions:")
-# for emotion in result["Emotions"]:
-#     print(
-#         f"{emotion['emotion'].capitalize()} ({emotion['activation']} activation): "
-#         f"Intensity: {emotion['intensity']:.2f}"
-#     )
-
-# adorescore_calculator.plot_trends()
