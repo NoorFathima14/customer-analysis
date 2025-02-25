@@ -1,5 +1,5 @@
 from typing import List, Dict
-from config import EmotionConfig
+from emotion_detection.config import EmotionConfig
 
 class EmotionPostprocessor:
     @staticmethod

@@ -5,8 +5,8 @@ from transformers import BertModel, BertTokenizer
 from torch.utils.data import DataLoader
 from typing import List, Dict
 from sklearn.metrics import f1_score
-from config import EmotionConfig
-from utils import EmotionPostprocessor
+from emotion_detection.config import EmotionConfig
+from emotion_detection.utils import EmotionPostprocessor
 from dataset import GoEmotionsDataset
 import numpy as np
 

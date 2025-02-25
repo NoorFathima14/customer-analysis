@@ -1,12 +1,12 @@
 from torch.utils.data import DataLoader
-from pretokenized_dataset import PreTokenizedDataset
-from detector import EmotionDetector
+from emotion_detection.pretokenized_dataset import PreTokenizedDataset
+from emotion_detection.detector import EmotionDetector
 from datasets import load_dataset
 from sklearn.model_selection import train_test_split
 #from transformers import DistilBertModel, DistilBertTokenizer
 from transformers import BertModel, BertTokenizer
 from label_preprocessor import process_train_labels
-from config import EmotionConfig as config
+from emotion_detection.config import EmotionConfig as config
 
 # Load GoEmotions dataset
 dataset = load_dataset("go_emotions", "raw")
