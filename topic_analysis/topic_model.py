@@ -181,15 +181,15 @@ class TopicModel:
                     print(f"- Main Topic: {label} (Confidence: {main_score:.2f})")
             print("-" * 50)
 
-# Execute
-model = TopicModel()
-model = TopicModel()
-model.load_datasets()
-model.train()
+# # Example usage
+# model = TopicModel()
+# model = TopicModel()
+# model.load_datasets()
+# model.train()
 
-new_reviews = [
-    "The jeans fit perfectly! Love the quality.",
-    "I was disappointed with how late my package arrived.",
-    "The customer service was extremely helpful and friendly.",
-]
-model.predict(new_reviews)
+# new_reviews = [
+#     "The jeans fit perfectly! Love the quality.",
+#     "I was disappointed with how late my package arrived.",
+#     "The customer service was extremely helpful and friendly.",
+# ]
+# model.predict(new_reviews)
