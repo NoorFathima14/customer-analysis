@@ -1,13 +1,11 @@
 import torch
 import torch.nn as nn
-#from transformers import DistilBertModel, DistilBertTokenizer
 from transformers import BertModel, BertTokenizer
 from torch.utils.data import DataLoader
 from typing import List, Dict
 from sklearn.metrics import f1_score
 from emotion_detection.config import EmotionConfig
 from emotion_detection.utils import EmotionPostprocessor
-from dataset import GoEmotionsDataset
 import numpy as np
 
 class BertForEmotionClassification(nn.Module):

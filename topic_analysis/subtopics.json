@@ -1,0 +1,33 @@
+{
+    "Delivery": {
+        "Speedy Delivery": ["fast", "prompt", "quick", "on time", "rapid", "swift"],
+        "Free Delivery": ["free", "no cost", "complimentary"],
+        "Slow Delivery": ["slow", "delayed", "late", "took too long", "long wait"]
+    },
+    "Quality": {
+        "High Quality": ["excellent", "premium", "durable", "superior","awesome","amazing"],
+        "Poor Quality": ["flimsy", "defective", "cheap", "poor"],
+        "Consistent Quality": ["consistent", "reliable", "steady"]
+    },
+    "Fit and Size": {
+        "Perfect Fit": ["perfect", "ideal", "true to size"],
+        "Too Small": ["small", "tight", "cramped"],
+        "Too Big": ["big", "loose", "baggy"]
+    },
+    "Price": {
+        "Affordable": ["cheap", "affordable", "good value"],
+        "Expensive": ["expensive", "high priced", "overpriced"]
+    },
+    "Customer Service": {
+        "Helpful Service": ["helpful", "friendly", "responsive"],
+        "Poor Service": ["unresponsive", "rude", "disappointing"]
+    },
+    "Clothes": {
+        "Stylish": ["stylish", "trendy", "fashionable"],
+        "Comfortable": ["comfortable", "soft", "cozy"],
+        "Durable": ["durable", "long lasting", "sturdy"]
+    },
+    "Others": {
+        "Miscellaneous": ["miscellaneous", "other", "varied"]
+    }
+}

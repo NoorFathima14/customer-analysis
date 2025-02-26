@@ -8,10 +8,10 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import pickle
+import os
 
 class ReviewPreprocessor:
     """Handles review text preprocessing (cleaning, stopword removal, lemmatization)."""
-    
     def __init__(self):
         self.stopwords = set(stopwords.words("english"))
         self.stopwords.update(["the", "and", "it", "is", "to", "for", "of", "this", "that", "in", "a", "an", "on", "with"])
@@ -27,22 +27,22 @@ class ReviewPreprocessor:
 
 class MainTopicModel:
     """Main topic detection using BERTopic with Seeded Topic Labeling (Anchor Words)."""
-    
-    def __init__(self, embedding_model):
+
+    def __init__(self, embedding_model, anchor_file="anchor_topicwords.json"):
         self.embedding_model = embedding_model
         self.topic_model = BERTopic(embedding_model=self.embedding_model, calculate_probabilities=True, n_gram_range=(1, 3))
-        
+
         # Define anchor words for each main topic
-        self.anchor_words = {
-            "Delivery": ["delivery", "shipping", "arrived", "late", "package", "courier", "ship"],
-            "Quality": ["quality", "durable", "sturdy", "wellmade", "flimsy", "defective"],
-            "Fit and Size": ["fit", "size", "measurement", "true", "loose", "tight"],
-            "Price": ["price", "cost", "expensive", "cheap", "value"],
-            "Customer Service": ["service", "support", "helpful", "friendly", "responsive"],
-            "Clothes": ["clothes", "fashion", "design", "style", "wear"],
-            "Others": ["other", "miscellaneous"]
-        }
+        self.anchor_words = self.load_anchor_words(anchor_file)
         self.anchor_embeddings = {label: self.embedding_model.encode(words) for label, words in self.anchor_words.items()}
+
+    def load_anchor_words(self, file_path):
+        """Loads anchor words from a JSON file."""
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Anchor words file '{file_path}' not found!")
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
 
     def train_topic_model(self, processed_reviews):
         """Train BERTopic model on the dataset"""
@@ -74,49 +74,27 @@ class MainTopicModel:
         review_embed = self.embedding_model.encode(review)
         scores = {label: util.cos_sim(review_embed, anchors).mean().item() for label, anchors in self.anchor_embeddings.items()}
         assigned = {label: score for label, score in scores.items() if score >= threshold}
+        if not assigned:
+            assigned["Others"] = 1.0
         return dict(sorted(assigned.items(), key=lambda x: x[1], reverse=True))
 
 class SubtopicModel:
     """Subtopic classification within each main topic using anchor words."""
 
-    def __init__(self, embedding_model):
+    def __init__(self, embedding_model, subtopic_file="subtopics.json"):
         self.embedding_model = embedding_model
-        self.subtopic_anchor_words = {
-            "Delivery": {
-                "Speedy Delivery": ["fast", "prompt", "quick", "on time", "rapid", "swift"],
-                "Free Delivery": ["free", "no cost", "complimentary"],
-                "Slow Delivery": ["slow", "delayed", "late", "took too long", "long wait"]
-            },
-            "Quality": {
-                "High Quality": ["excellent", "premium", "durable", "superior"],
-                "Poor Quality": ["flimsy", "defective", "cheap", "poor"],
-                "Consistent Quality": ["consistent", "reliable", "steady"]
-            },
-            "Fit and Size": {
-                "Perfect Fit": ["perfect", "ideal", "true to size"],
-                "Too Small": ["small", "tight", "cramped"],
-                "Too Big": ["big", "loose", "baggy"]
-            },
-            "Price": {
-                "Affordable": ["cheap", "affordable", "good value"],
-                "Expensive": ["expensive", "high priced", "overpriced"]
-            },
-            "Customer Service": {
-                "Helpful Service": ["helpful", "friendly", "responsive"],
-                "Poor Service": ["unresponsive", "rude", "disappointing"]
-            },
-            "Clothes": {
-                "Stylish": ["stylish", "trendy", "fashionable"],
-                "Comfortable": ["comfortable", "soft", "cozy"],
-                "Durable": ["durable", "long lasting", "sturdy"]
-            },
-            "Others": {
-                "Miscellaneous": ["miscellaneous", "other", "varied"]
-            }
-        }
+        self.subtopic_anchor_words = self.load_subtopics(subtopic_file)
         self.subtopic_anchor_embeddings = {
             main: {sub: self.embedding_model.encode(words) for sub, words in subs.items()} for main, subs in self.subtopic_anchor_words.items()
         }
+
+    def load_subtopics(self, file_path):
+        """Loads subtopics from a JSON file."""
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Subtopics file '{file_path}' not found!")
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
 
     def predict_review_subtopics(self, review, main_labels, threshold=0.1):
         """Predicts the best subtopic for each main topic"""
@@ -146,18 +124,36 @@ class TopicModel:
         self.subtopic_model = SubtopicModel(self.embedding_model)
         self.model_path = model_path
 
-    def load_datasets(self):
-        """Loads synthetic and Amazon Fashion datasets, then preprocesses them."""
+    def load_datasets(self, size=7000):
+        """Loads synthetic dataset and multiple Amazon review categories."""
+
+        # List of categories to include
+        categories = ["Amazon_Fashion"]
+        DATASET_SIZE=round(size/len(categories))
+        SYNDATA_SIZE=6000
+        # Load synthetic reviews
         with open(self.synthetic_file, "r", encoding="utf-8") as f:
             synthetic_reviews = [line.strip() for line in f.readlines() if line.strip()]
-        synthetic_reviews = synthetic_reviews[:6000]
-        amazon_fashion = load_dataset("McAuley-Lab/Amazon-Reviews-2023", self.dataset_category, split="full", streaming=True, trust_remote_code=True)
-        amazon_fashion = list(amazon_fashion.shuffle(buffer_size=14000, seed=42).take(7000))
+        synthetic_reviews = synthetic_reviews[:SYNDATA_SIZE]  # Limit to 6,000 reviews
 
-        synthetic_dicts = [{"text": review} for review in synthetic_reviews]
-        combined_reviews = synthetic_dicts + amazon_fashion
-        self.review_texts = list(dict.fromkeys([review["text"] for review in combined_reviews if "text" in review]))
+        amazon_reviews = []
+        for category in categories:
+            dataset = load_dataset("McAuley-Lab/Amazon-Reviews-2023", f"raw_review_{category}",
+                                  split="full", streaming=True, trust_remote_code=True)
+            category_reviews = list(dataset.shuffle(buffer_size=5000, seed=42).take(DATASET_SIZE))
+            amazon_reviews.extend(category_reviews)  # Append category reviews
+
+        print(f"Loaded {len(amazon_reviews)} Amazon reviews across {len(categories)} categories.")
+
+        synthetic_dicts = [{"text": review} for review in synthetic_reviews] # Convert to dictionary format for consistency
+        combined_reviews = synthetic_dicts + amazon_reviews
+
+        self.review_texts = list(dict.fromkeys([review["text"] for review in combined_reviews if "text" in review])) #remove duplicates
+
+        # Preprocess all reviews
         self.processed_reviews = [self.preprocessor.preprocess(text) for text in self.review_texts]
+
+        print(f"Total unique preprocessed reviews: {len(self.processed_reviews)}")
 
     def train(self):
         """Trains topic model on processed dataset."""
@@ -189,10 +185,10 @@ class TopicModel:
             "bertopic_model": self.main_topic_model.topic_model,  # Ensure BERTopic is stored properly
             "subtopic_embeddings": self.subtopic_model.subtopic_anchor_embeddings
         }
-        
+
         with open(self.model_path, "wb") as f:
             pickle.dump(save_data, f)  # Save the dictionary, not just BERTopic
-        
+
         print(f"Model saved to {self.model_path}")
 
     @classmethod
@@ -205,10 +201,10 @@ class TopicModel:
         instance = cls(model_path)
 
         # If the pickle contains just BERTopic, wrap it in a dictionary
-        if isinstance(loaded_data, BERTopic):  
+        if isinstance(loaded_data, BERTopic):
             instance.main_topic_model.topic_model = loaded_data
             print("Warning: Old model format detected. Subtopic embeddings not loaded.")
-        elif isinstance(loaded_data, dict):  
+        elif isinstance(loaded_data, dict):
             # Properly restore both BERTopic and subtopics
             instance.main_topic_model.topic_model = loaded_data["bertopic_model"]
             instance.subtopic_model.subtopic_anchor_embeddings = loaded_data.get("subtopic_embeddings", {})

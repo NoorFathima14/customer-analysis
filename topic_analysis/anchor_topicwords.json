@@ -1,0 +1,9 @@
+{
+    "Delivery": ["delivery", "shipping", "arrived", "late", "package", "courier", "ship"],
+    "Quality": ["quality", "durable", "sturdy", "wellmade", "flimsy", "defective"],
+    "Fit and Size": ["fit", "size", "measurement", "true", "loose", "tight"],
+    "Price": ["price", "cost", "expensive", "cheap", "value"],
+    "Customer Service": ["service", "support", "helpful", "friendly", "responsive"],
+    "Clothes": ["clothes", "fashion", "design", "style", "wear"],
+    "Others": ["other", "miscellaneous"]
+}

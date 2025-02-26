@@ -5,7 +5,7 @@ from datasets import load_dataset
 from sklearn.model_selection import train_test_split
 #from transformers import DistilBertModel, DistilBertTokenizer
 from transformers import BertModel, BertTokenizer
-from label_preprocessor import process_train_labels
+from emotion_detection.laber_preprocessor import process_train_labels
 from emotion_detection.config import EmotionConfig as config
 
 # Load GoEmotions dataset

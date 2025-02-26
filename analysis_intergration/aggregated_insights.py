@@ -59,15 +59,3 @@ class AggregatedInsights:
         # Plot Adorescore trends
         self.adorescore_calculator.plot_trends()
 
-# Example Usage:
-sample_review = "The delivery was very late! the product is fit is nice."
-
-emotions = emotion_detector.predict(sample_review)[:3]
-topics = topic_model.main_topic_model.predict_review_labels(sample_review, threshold=0.2)
-subtopics = topic_model.subtopic_model.predict_review_subtopics(sample_review, topics, threshold=0.1)
-correlation_analyzer = ThemeEmotionCorrelation(emotions, topics, subtopics)
-emotion_distribution = EmotionDistribution(emotions, topics, subtopics)
-
-insights = AggregatedInsights(correlation_analyzer, emotion_distribution, adorescore_calculator)
-insights.generate_summary()
-insights.plot_insights()
