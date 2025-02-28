@@ -4,8 +4,8 @@ from transformers import BertModel, BertTokenizer
 from torch.utils.data import DataLoader
 from typing import List, Dict
 from sklearn.metrics import f1_score
-from emotion_detection.config import EmotionConfig
-from emotion_detection.utils import EmotionPostprocessor
+# from emotion_detection.config import EmotionConfig
+# from emotion_detection.utils import EmotionPostprocessor
 import numpy as np
 
 class BertForEmotionClassification(nn.Module):
@@ -66,7 +66,7 @@ class EmotionDetector:
         
         # Post-process
         probs = torch.sigmoid(logits).cpu().numpy()[0]
-        return self._format_output(probs)
+        return self._format_output(probs,logits)
 
     def _format_output(self, probs: np.ndarray, logits: np.ndarray) -> list:
         results = []
@@ -139,7 +139,17 @@ class EmotionDetector:
 
     @classmethod
     def load_model(cls, path: str):
-        checkpoint = torch.load(path, weights_only=False)
-        detector = cls(config=checkpoint['config'])
-        detector.model.load_state_dict(checkpoint['model_state_dict'])
+        # checkpoint = torch.load(path, weights_only=False)
+        # detector = cls(config=checkpoint['config'])
+        # detector.model.load_state_dict(checkpoint['model_state_dict'])
+        # return detector
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  
+
+        with torch.serialization.safe_globals(["config.EmotionConfig"]):
+            checkpoint = torch.load(path, map_location=device, weights_only=False)
+
+        detector = cls(config=checkpoint["config"])
+        detector.model.load_state_dict(checkpoint["model_state_dict"])
+        detector.model.to(device)  
+
         return detector

@@ -231,6 +231,3 @@ class TopicModel:
 # Download NLTK resources
 nltk.download("stopwords")
 nltk.download("wordnet")
-
-model = TopicModel()
-model.topic_analysis()

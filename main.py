@@ -7,25 +7,18 @@ sys.modules["config"] = emotion_detection.config
 from emotion_detection.detector import EmotionDetector
 from topic_analysis.topic_model import TopicModel
 from adorescore.adorescore import AdorescoreCalculator
-from analysis_intergration.emotion_correlation import ThemeEmotionCorrelation
-from analysis_intergration.emotion_distribution import EmotionDistribution
-from analysis_intergration.aggregated_insights import AggregatedInsights
+from translate import Translator
 
-# Load model
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+# model loading
+
 detector = EmotionDetector.load_model("emotion_model.pth")
-
-# Predict
-review = "The product was awesome, but the delivery was terrible"
-emotion_results = detector.predict(review)[:3]
-
 topic_model = TopicModel.load_model()
-topic_results = topic_model.predict(review)
-
-topics = topic_model.main_topic_model.predict_review_labels(review, threshold=0.2)
-subtopics = topic_model.subtopic_model.predict_review_subtopics(review, topics, threshold=0.1)
-
 adorescore_calculator = AdorescoreCalculator()
-adore_results = adorescore_calculator.analyze_review(review, emotion_results, topics)
+
+app = FastAPI()
 
 def format_emotions(emotion_list):
     """
@@ -63,13 +56,34 @@ def format_output(emotion_list, topic_list, adorescore_list):
         "adorescore": adorescore_list
     }
 
-print(format_output(emotion_results,topic_results,adore_results))
 
-correlation_analyzer = ThemeEmotionCorrelation(emotion_results, topics, subtopics)
-emotion_distribution = EmotionDistribution(emotion_results, topics, subtopics)
-insights = AggregatedInsights(correlation_analyzer, emotion_distribution, adorescore_calculator)
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Customer Analysis Model API"}
 
-insights.generate_summary()
-insights.plot_insights()
+class Review(BaseModel):    
+    text: str
+    language: str
 
+@app.post("/predict")
+async def predict(request: Review):
+    language = request.language
+    text = request.text
+    translator = Translator()
+
+    if language != "english":
+        text = await translator.translate(prompt=text, source_lang=language)
+        print(text)
+    
+    emotion_results = detector.predict(text)[:3]
+    topic_results = topic_model.predict(text)
+
+    topics = topic_model.main_topic_model.predict_review_labels(text, threshold=0.2)
+    subtopics = topic_model.subtopic_model.predict_review_subtopics(text, topics, threshold=0.1)
+
+    adore_results = adorescore_calculator.analyze_review(text, emotion_results, topics)
+
+    output = format_output(emotion_results, topic_results, adore_results)
+    
+    return output
 

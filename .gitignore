@@ -1,1 +1,13 @@
 asmt
+
+venv/
+
+emotion_detection/__pycache__
+analysis_intergration/__pycache__
+adorescore/__pycache__
+topic_analysis/__pycache__
+
+train_labels.pkl
+synthetic_delivery_reviews.txt
+emotion_model.pth
+bertopic_model.pkl
